@@ -1,0 +1,221 @@
+-- --- H3SSKA HUB V18 (ROTATING NEON BORDER) ---
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- Nettoyage
+if LocalPlayer.PlayerGui:FindFirstChild("H3SSKA_MODERN") then LocalPlayer.PlayerGui.H3SSKA_MODERN:Destroy() end
+
+-- --- CONFIG ---
+getgenv().CONFIG = {
+    AUTO_STEAL = false,
+    AUTO_POTION = false,
+    SPEED_ENABLED = false,
+    SPEED_VALUE = 34,
+    STEAL_RANGE = 20
+}
+
+local InternalStealCache = {}
+local IsStealing = false
+local StealProgress = 0
+local circleParts = {}
+local allAnimalsCache = {}
+
+-- --- LOGIQUE CORE (ORIGINALE V9) ---
+local function useStealPotion()
+    if not getgenv().CONFIG.AUTO_POTION then return end
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    local pot = char:FindFirstChild("Giant Potion") or bp:FindFirstChild("Giant Potion") or char:FindFirstChild("Steal Potion") or bp:FindFirstChild("Steal Potion")
+    if pot then pot.Parent = char; task.wait(0.01); pot:Activate() end
+end
+
+local function executeSteal(p)
+    if InternalStealCache[p] and not InternalStealCache[p].ready then return end
+    if not InternalStealCache[p] then
+        local d = {hold = {}, trig = {}, ready = true}
+        local ok1, c1 = pcall(getconnections, p.PromptButtonHoldBegan)
+        if ok1 then for _, v in ipairs(c1) do table.insert(d.hold, v.Function) end end
+        local ok2, c2 = pcall(getconnections, p.Triggered)
+        if ok2 then for _, v in ipairs(c2) do table.insert(d.trig, v.Function) end end
+        InternalStealCache[p] = d
+    end
+    
+    local data = InternalStealCache[p]
+    data.ready = false; IsStealing = true
+    task.spawn(function()
+        for _, f in ipairs(data.hold) do task.spawn(f) end
+        local start = tick()
+        local dur = p.HoldDuration > 0 and p.HoldDuration or 1.3
+        while tick() - start < (dur - 0.01) do
+            StealProgress = (tick() - start) / dur
+            task.wait()
+        end
+        useStealPotion()
+        task.wait(0.01)
+        StealProgress = 1
+        for _, f in ipairs(data.trig) do task.spawn(f) end
+        task.wait(0.1)
+        data.ready = true; IsStealing = false; StealProgress = 0
+    end)
+end
+
+-- --- UI ---
+local sg = Instance.new("ScreenGui", LocalPlayer.PlayerGui); sg.Name = "H3SSKA_MODERN"; sg.ResetOnSpawn = false
+
+-- Bouton H (Déplaçable)
+local openBtn = Instance.new("TextButton", sg)
+openBtn.Size = UDim2.new(0, 45, 0, 45); openBtn.Position = UDim2.new(0, 15, 0.5, -22)
+openBtn.BackgroundColor3 = Color3.fromRGB(15, 12, 12); openBtn.Text = "H"; openBtn.TextColor3 = Color3.fromRGB(255, 255, 0)
+openBtn.Font = "GothamBlack"; openBtn.TextSize = 25; openBtn.Visible = false; openBtn.Active = true; openBtn.Draggable = true
+Instance.new("UICorner", openBtn); Instance.new("UIStroke", openBtn).Color = Color3.fromRGB(255, 255, 0)
+
+-- Fenêtre principale (Réduite)
+local main = Instance.new("Frame", sg)
+main.Size = UDim2.new(0, 400, 0, 260); main.Position = UDim2.new(0.5, -200, 0.5, -130)
+main.BackgroundColor3 = Color3.fromRGB(15, 12, 12); main.Active = true; main.Draggable = true
+local mainCorner = Instance.new("UICorner", main); mainCorner.CornerRadius = UDim.new(0, 8)
+
+-- CONTOUR TOURNANT (Effet Rainbow Jaune/Blanc)
+local borderStroke = Instance.new("UIStroke", main)
+borderStroke.Thickness = 2.5
+borderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local borderGrad = Instance.new("UIGradient", borderStroke)
+borderGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0.4, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 0)), -- Le point Jaune
+    ColorSequenceKeypoint.new(0.6, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
+})
+
+-- Animation de rotation de la bordure
+task.spawn(function()
+    local rot = 0
+    while RunService.RenderStepped:Wait() do
+        rot = rot + 2.5 -- Vitesse de rotation
+        borderGrad.Rotation = rot % 360
+    end
+end)
+
+-- Titre Balayage
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 40); title.Text = "H3SSKA HUB"; title.TextColor3 = Color3.new(1,1,1); title.Font = "GothamBold"; title.TextSize = 16; title.BackgroundTransparency = 1
+local titleGrad = Instance.new("UIGradient", title)
+titleGrad.Color = borderGrad.Color -- Même couleurs
+task.spawn(function()
+    local off = -1
+    while RunService.RenderStepped:Wait() do
+        titleGrad.Offset = Vector2.new(off, 0)
+        off = off + 0.018
+        if off > 1 then off = -1 end
+    end
+end)
+
+-- Barre fixe sous titre
+local line = Instance.new("Frame", main)
+line.Size = UDim2.new(1, -10, 0, 1); line.Position = UDim2.new(0, 5, 0, 38); line.BackgroundColor3 = Color3.new(1,1,0); line.BorderSizePixel = 0
+
+-- Bouton Fermer
+local closeBtn = Instance.new("TextButton", main)
+closeBtn.Size = UDim2.new(0, 30, 0, 30); closeBtn.Position = UDim2.new(1, -35, 0, 5); closeBtn.BackgroundTransparency = 1; closeBtn.Text = "X"; closeBtn.TextColor3 = Color3.new(1,1,0); closeBtn.Font = "GothamBold"; closeBtn.TextSize = 18
+
+-- Menu latéral
+local sideMenu = Instance.new("Frame", main)
+sideMenu.Size = UDim2.new(0, 110, 1, -45); sideMenu.Position = UDim2.new(0, 2, 0, 42); sideMenu.BackgroundColor3 = Color3.fromRGB(20, 18, 18); Instance.new("UICorner", sideMenu)
+local tabBtn = Instance.new("TextButton", sideMenu)
+tabBtn.Size = UDim2.new(0.9, 0, 0, 30); tabBtn.Position = UDim2.new(0.05, 0, 0, 10); tabBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 10); tabBtn.Text = "Stealer"; tabBtn.TextColor3 = Color3.new(1,1,0); tabBtn.Font = "GothamBold"; Instance.new("UICorner", tabBtn)
+
+-- Liste options
+local container = Instance.new("ScrollingFrame", main)
+container.Size = UDim2.new(1, -125, 1, -55); container.Position = UDim2.new(0, 120, 0, 45); container.BackgroundTransparency = 1; container.ScrollBarThickness = 0
+Instance.new("UIListLayout", container).Padding = UDim.new(0, 8)
+
+-- GRAB HUD (Déplaçable)
+local grabHud = Instance.new("Frame", sg); grabHud.Size = UDim2.new(0, 300, 0, 40); grabHud.Position = UDim2.new(0.5, -150, 0, 45); grabHud.BackgroundTransparency = 1; grabHud.Visible = false; grabHud.Active = true; grabHud.Draggable = true
+local barBack = Instance.new("Frame", grabHud); barBack.Size = UDim2.new(0.7, 0, 0, 10); barBack.Position = UDim2.new(0, 0, 0.5, -5); barBack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+local barFill = Instance.new("Frame", barBack); barFill.Size = UDim2.new(0, 0, 1, 0); barFill.BackgroundColor3 = Color3.new(1,1,0)
+local rangeInput = Instance.new("TextBox", grabHud); rangeInput.Size = UDim2.new(0, 50, 0, 25); rangeInput.Position = UDim2.new(0.75, 5, 0.5, -12); rangeInput.BackgroundColor3 = Color3.fromRGB(25, 22, 22); rangeInput.Text = "20"; rangeInput.TextColor3 = Color3.new(1,1,0); rangeInput.Font = "GothamBold"; Instance.new("UICorner", rangeInput)
+rangeInput.FocusLost:Connect(function() getgenv().CONFIG.STEAL_RANGE = tonumber(rangeInput.Text) or 20 end)
+
+-- SPEED OVERLAY (Déplaçable)
+local speedOverlay = Instance.new("Frame", sg); speedOverlay.Size = UDim2.new(0, 90, 0, 70); speedOverlay.Position = UDim2.new(1, -110, 0.5, 0); speedOverlay.BackgroundColor3 = Color3.fromRGB(15, 12, 12); speedOverlay.Visible = false; speedOverlay.Active = true; speedOverlay.Draggable = true
+Instance.new("UIStroke", speedOverlay).Color = Color3.new(1,1,0); Instance.new("UICorner", speedOverlay)
+local sVal = Instance.new("TextBox", speedOverlay); sVal.Size = UDim2.new(1, 0, 0.5, 0); sVal.Text = "34"; sVal.TextColor3 = Color3.new(1,1,1); sVal.BackgroundTransparency = 1; sVal.Font = "GothamBold"
+sVal.FocusLost:Connect(function() getgenv().CONFIG.SPEED_VALUE = tonumber(sVal.Text) or 34 end)
+local sBtn = Instance.new("TextButton", speedOverlay); sBtn.Size = UDim2.new(0.8, 0, 0.35, 0); sBtn.Position = UDim2.new(0.1, 0, 0.55, 0); sBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0); sBtn.Text = "OFF"; sBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", sBtn)
+sBtn.MouseButton1Click:Connect(function() getgenv().CONFIG.SPEED_ENABLED = not getgenv().CONFIG.SPEED_ENABLED; sBtn.Text = getgenv().CONFIG.SPEED_ENABLED and "ON" or "OFF"; sBtn.BackgroundColor3 = getgenv().CONFIG.SPEED_ENABLED and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0) end)
+
+local function createToggle(name, callback)
+    local frame = Instance.new("Frame", container); frame.Size = UDim2.new(1, -10, 0, 40); frame.BackgroundColor3 = Color3.fromRGB(25, 22, 22); Instance.new("UICorner", frame)
+    local label = Instance.new("TextLabel", frame); label.Size = UDim2.new(0.7, 0, 1, 0); label.Position = UDim2.new(0, 10, 0, 0); label.Text = name; label.TextColor3 = Color3.new(0.8,0.8,0.8); label.Font = "Gotham"; label.TextXAlignment = "Left"; label.BackgroundTransparency = 1
+    local switch = Instance.new("TextButton", frame); switch.Size = UDim2.new(0, 35, 0, 18); switch.Position = UDim2.new(1, -45, 0.5, -9); switch.BackgroundColor3 = Color3.fromRGB(50, 50, 50); switch.Text = ""; Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
+    local circle = Instance.new("Frame", switch); circle.Size = UDim2.new(0, 14, 0, 14); circle.Position = UDim2.new(0, 2, 0.5, -7); circle.BackgroundColor3 = Color3.new(1,1,1); Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
+    local active = false
+    switch.MouseButton1Click:Connect(function()
+        active = not active
+        circle:TweenPosition(active and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true)
+        switch.BackgroundColor3 = active and Color3.new(1,1,0) or Color3.fromRGB(50, 50, 50)
+        callback(active)
+    end)
+end
+
+createToggle("Auto Grab", function(s) getgenv().CONFIG.AUTO_STEAL = s; grabHud.Visible = s if not s then for _, p in pairs(circleParts) do p:Destroy() end circleParts = {} end end)
+createToggle("Giant Potion", function(s) getgenv().CONFIG.AUTO_POTION = s end)
+createToggle("Speed Boost", function(s) speedOverlay.Visible = s end)
+
+closeBtn.MouseButton1Click:Connect(function() main.Visible = false; openBtn.Visible = true end)
+openBtn.MouseButton1Click:Connect(function() main.Visible = true; openBtn.Visible = false end)
+
+-- --- BOUCLES ---
+task.spawn(function()
+    while task.wait(4) do
+        allAnimalsCache = {}
+        pcall(function()
+            for _, plot in ipairs(workspace.Plots:GetChildren()) do
+                local pods = plot:FindFirstChild("AnimalPodiums")
+                if pods then
+                    for _, pod in ipairs(pods:GetChildren()) do
+                        if pod:IsA("Model") and pod:FindFirstChild("Base") then
+                            table.insert(allAnimalsCache, {pos = pod:GetPivot().Position, pod = pod})
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    if getgenv().CONFIG.SPEED_ENABLED then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.MoveDirection.Magnitude > 0 then
+            hrp.Velocity = Vector3.new(hum.MoveDirection.X * getgenv().CONFIG.SPEED_VALUE, hrp.Velocity.Y, hum.MoveDirection.Z * getgenv().CONFIG.SPEED_VALUE)
+        end
+    end
+    if getgenv().CONFIG.AUTO_STEAL then
+        if #circleParts == 0 then
+            for i = 1, 65 do
+                local p = Instance.new("Part", workspace); p.Anchored = true; p.CanCollide = false
+                p.Size = Vector3.new(1.2, 0.15, 0.15); p.Color = Color3.new(1, 1, 0); p.Material = "Neon"; table.insert(circleParts, p)
+            end
+        end
+        for i, p in ipairs(circleParts) do
+            local a = i * (math.pi * 2 / 65)
+            p.CFrame = CFrame.new(hrp.Position + Vector3.new(math.cos(a)*getgenv().CONFIG.STEAL_RANGE, -2.8, math.sin(a)*getgenv().CONFIG.STEAL_RANGE))
+        end
+        barFill.Size = UDim2.new(StealProgress, 0, 1, 0)
+        if not IsStealing then
+            for _, anim in ipairs(allAnimalsCache) do
+                if (hrp.Position - anim.pos).Magnitude <= getgenv().CONFIG.STEAL_RANGE then
+                    local pr = anim.pod.Base.Spawn.PromptAttachment:FindFirstChildOfClass("ProximityPrompt")
+                    if pr then executeSteal(pr) break end
+                end
+            end
+        end
+    end
+end)
