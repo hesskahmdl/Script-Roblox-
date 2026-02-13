@@ -1,61 +1,35 @@
--- --- H3SSKA HUB V18 (SÉCURISÉ) ---
+-- --- SECURITÉ WHITELIST ---
 local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
-
--- 1. LE LIEN VERS TA WHITELIST
 local whitelistURL = "https://raw.githubusercontent.com/hesskahmdl/Script-Roblox-/refs/heads/main/whitelist.lua"
 
--- 2. FONCTION DE VÉRIFICATION
-local function checkWhitelist()
+local function check()
     local success, result = pcall(function()
-        -- On récupère le contenu de ta whitelist sur GitHub
         return loadstring(game:HttpGet(whitelistURL))()
     end)
-
     if success and type(result) == "table" then
         for _, id in ipairs(result) do
-            if lp.UserId == id then
-                return true -- L'ID est autorisé
-            end
+            if lp.UserId == id then return true end
         end
     end
-    return false -- L'ID n'est pas autorisé
+    return false
 end
 
--- 3. EXÉCUTION DE LA SÉCURITÉ
-if not checkWhitelist() then
-    warn("ACCÈS REFUSÉ : " .. lp.UserId)
-    lp:Kick("❌ H3SSKA HUB : Tu n'es pas whitelisté ! ID: " .. lp.UserId)
-    return -- ARRÊTE COMPLÈTEMENT LE SCRIPT
+if not check() then
+    lp:Kick("ACCÈS REFUSÉ. Ton ID: " .. lp.UserId)
+    return
 end
 
--- --- SI LE JOUEUR EST WHITELISTÉ, LE CODE CI-DESSOUS SE LANCE ---
-print("✅ Accès autorisé ! Bienvenue " .. lp.Name)
-
+-- --- CODE DU HUB (V18) ---
 local RunService = game:GetService("RunService")
 if lp.PlayerGui:FindFirstChild("H3SSKA_MODERN") then lp.PlayerGui.H3SSKA_MODERN:Destroy() end
 
-getgenv().CONFIG = {
-    AUTO_STEAL = false,
-    AUTO_POTION = false,
-    SPEED_ENABLED = false,
-    SPEED_VALUE = 34,
-    STEAL_RANGE = 20
-}
+getgenv().CONFIG = {AUTO_STEAL = false, AUTO_POTION = false, SPEED_ENABLED = false, SPEED_VALUE = 34, STEAL_RANGE = 20}
+local InternalStealCache, IsStealing, StealProgress = {}, false, 0
 
-local InternalStealCache, IsStealing, StealProgress, circleParts, allAnimalsCache = {}, false, 0, {}, {}
-
--- LOGIQUE CORE
-local function useStealPotion()
-    if not getgenv().CONFIG.AUTO_POTION then return end
-    local char, bp = lp.Character, lp:FindFirstChild("Backpack")
-    local pot = char:FindFirstChild("Giant Potion") or bp:FindFirstChild("Giant Potion") or char:FindFirstChild("Steal Potion") or bp:FindFirstChild("Steal Potion")
-    if pot then pot.Parent = char; task.wait(0.01); pot:Activate() end
-end
-
-local function executeSteal(p)
-    if InternalStealCache[p] and not InternalStealCache[p].ready then return end
-    if not InternalStealCache[p] then
-        local d = {hold = {}, trig = {}, ready = true}
-        local ok1, c1 = pcall(getconnections, p.PromptButtonHoldBegan)
-        if ok1 then for _, v in ipairs(c1) do table.insert(d.hold, v.Function) end
+local sg = Instance.new("ScreenGui", lp.PlayerGui); sg.Name = "H3SSKA_MODERN"; sg.ResetOnSpawn = false
+local main = Instance.new("Frame", sg); main.Size = UDim2.new(0, 400, 0, 260); main.Position = UDim2.new(0.5, -200, 0.5, -130); main.BackgroundColor3 = Color3.fromRGB(15, 12, 12); main.Active = true; main.Draggable = true
+Instance.new("UICorner", main)
+local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 40); title.Text = "H3SSKA HUB V18"; title.TextColor3 = Color3.new(1,1,1); title.BackgroundTransparency = 1; title.Font = "GothamBold"
+local close = Instance.new("TextButton", main); close.Size = UDim2.new(0, 30, 0, 30); close.Position = UDim2.new(1, -35, 0, 5); close.Text = "X"; close.TextColor3 = Color3.new(1,1,0); close.BackgroundTransparency = 1; close.MouseButton1Click:Connect(function() sg:Destroy() end)
+print("H3SSKA HUB CHARGÉ AVEC SUCCÈS")
