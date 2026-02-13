@@ -1,17 +1,3 @@
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local Whitelist = {
-    ["Lacostedu12"] = true,
-}
-
-if not Whitelist[LocalPlayer.Name] then
-    LocalPlayer:Kick([[u are not whitelisted go buy the access in https://discord.gg/sFmfhdt3V2
-
-SMVLLHUB OT]])
-    task.wait(9e9)
-end                           
-
 -- --- H3SSKA HUB V18 (ROTATING NEON BORDER) ---
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
